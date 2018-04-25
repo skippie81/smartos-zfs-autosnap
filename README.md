@@ -34,9 +34,9 @@ a working entry would be
 
 ```
 # m     h     dom   mon   dow     command
-0 	    *	     *     *     *       /opt/local/bin/autosnap -t H -Z 1> /opt/local/log/autosnap_hourly.log 2>&1
-5 	    0	     *     *     *       /opt/local/bin/autosnap -t D -Z 1> /opt/local/log/autosnap_daily.log 2>&1
-10	    0	     *     *     1       /opt/local/bin/autosnap -t W -Z 1> /opt/local/log/autosnap.weekly.log 2>&1
+0       *	     *     *     *       /opt/local/bin/autosnap -t H -Z 1> /opt/local/log/autosnap_hourly.log 2>&1
+5       0      *     *     *       /opt/local/bin/autosnap -t D -Z 1> /opt/local/log/autosnap_daily.log 2>&1
+10      0	     *     *     1       /opt/local/bin/autosnap -t W -Z 1> /opt/local/log/autosnap.weekly.log 2>&1
 30      0      1     *     *       /opt/local/bin/autosnap -t M -Z 1> /opt/local/log/autosnap.monthly.log 2>&1
 ```
 
