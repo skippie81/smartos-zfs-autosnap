@@ -1,0 +1,227 @@
+#!/usr/bin/env bash
+
+set -o errexit  #exit on error
+set -o nounset  #error on use unset variable
+#set -o xtrace   #debug
+set -o pipefail #pass down rc throug pipes
+
+# Set magic variables for current file & dir
+__dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+__file="${__dir}/$(basename "${BASH_SOURCE[0]}")"
+__base="$(basename ${__file} .sh)"
+__root="$(cd "$(dirname "${__dir}")" && pwd)"
+
+# help function
+do_help() {
+cat << EOF
+
+  usage: $0 [-h] [-d] [-p <prfix>] -t <type> [-Z] [zfs] [zfs] ...
+
+    -p   <prfeix>   :   zfs prefix (default: autosnap)
+    -d              :   dryrun mode (do not realy create or remove any snapshot)
+    -Z              :   include all vm zfs volumes to create snapshots
+    -t              :   snapshot type
+                            H = Hourly
+                            D = Dayly
+                            W = Weekly
+                            M = Monthly
+
+    -h              :   display this message.
+EOF
+}
+
+# defaults
+
+PREFIX="autosnap"
+dryrun=false
+
+# parse arguments
+
+set_type() {
+  local option=${1}
+
+  if [[ "${option}" == "H" ||  "${option}" == "h" ]]
+  then
+    TYPE="hourly"
+  elif [[ "${option}" == "D" ||  "${option}" == "d" ]]
+  then
+    TYPE="daily"
+  elif [[ "${option}" == "W" ||  "${option}" == "w" ]]
+  then
+    TYPE="weekly"
+  elif [[ "${option}" == "M" ||  "${option}" == "m" ]]
+  then
+    TYPE="monthly"
+  else
+    echo "ERROR: unknown type ${option}"
+    exit 1
+  fi
+}
+
+while getopts ":hdZp:t:" opt
+do
+  case $opt in
+    h)  do_help
+        exit 0
+        ;;
+    p)  PREFIX=${OPTARG}
+        ;;
+    t)  set_type ${OPTARG}
+        ;;
+    d)  dryrun=true
+        ;;
+    Z)  zfs_volumes=$(vmadm list -o uuid -H | sed -e 's/^/zones\//g' | tr '\n' ' ')
+        ;;
+    \?) echo "Invalid option: -"${OPTARG}
+        do_help
+        ;;
+    :)  echo "Option -"${OPTARG}" requires value"
+        do_help
+        exit 0
+        ;;
+  esac
+done
+
+# discart al options from getopts, keep last part as zfs list
+shift "$((OPTIND-1))"
+zfs_volumes+=" $@"
+
+log() {
+  local type=${1}
+  local msg="${2}"
+
+  printf "%22s - %5s - %s\n" "$(date +"%d/%m/%Y  %H:%M:%S")" ${type} "${msg}"
+}
+
+get_snaps() {
+  local zfs=${1}
+  log INFO "Listing snapshots on ${zfs}"
+  zfs list -r -t snapshot -H -o name ${zfs}
+}
+
+clean_snap() {
+  local vol=${1}
+  local snap=${2}
+
+  _cmd="zfs destroy ${vol}@${snap}"
+
+  log INFO "Removing old snap ${snap} on volume ${vol}"
+
+  if ${dryrun}
+  then
+    echo ${_cmd}
+  else
+    ${_cmd}
+  fi
+}
+
+hourly_snap() {
+  snapname=''
+  local hour=$(date +"%k")
+  snapname=${PREFIX}-hourly-${hour}
+}
+
+daily_snap() {
+  snapname=''
+  local day=$(date +"%u")
+  snapname=${PREFIX}-daily-${day}
+}
+
+weekly_snap() {
+  snapname=''
+  local week=0
+  local day=$(date +"%e")
+
+  if [[ ${day} -le 7 ]]
+  then
+    week=1
+  elif [[ ${day} -le 14 ]]
+  then
+    week=2
+  elif [[ ${day} -le 21 ]]
+  then
+    week=3
+  elif [[ ${day} -le 28 ]]
+  then
+    week=4
+  else
+    week=5
+  fi
+
+  snapname=${PREFIX}-weekly-${week}
+}
+
+monthly_snap() {
+  snapname=''
+  local month=$(date +"%m")
+  snapname=${PREFIX}-monthly-${month}
+}
+
+check_prev_snap() {
+  local vol=${1}
+  local snap=${2}
+
+  if ( get_snaps "${vol}" | grep "${snap}" )
+  then
+    return 0
+  else
+    return 1
+  fi
+}
+
+create_snap() {
+  local vol=${1}
+  local snap=${2}
+
+  log INFO "Creating snapshot ${snap} on volume ${vol}"
+  zfs snapshot ${vol}@${snap}
+}
+
+do_snap() {
+  local vol=${1}
+  local snap=${2}
+
+  if (check_prev_snap "${vol}" "${snap}")
+  then
+    clean_snap "${vol}" "${snap}"
+  fi
+  create_snap "${vol}" "${snap}"
+}
+
+#
+# main
+#
+
+
+if [ "${TYPE}" == "" ]
+then
+  log ERROR "No type defined"
+  do_help
+  exit 1
+fi
+
+if [ "${zfs_volumes}" == "" ]
+then
+  log ERROR "No zfs volumes defined"
+  do_help
+  exit 1
+fi
+
+case ${TYPE} in
+  hourly)   hourly_snap
+            ;;
+  daily)    daily_snap
+            ;;
+  weekly)   weekly_snap
+            ;;
+  monthly)  monthly_snap
+            ;;
+  *)        log "ERROR: Wrong type"
+            exit 1
+            ;;
+esac
+
+for vol in ${zfs_volumes}
+do
+  do_snap "${vol}" "${snapname}"
+done
