@@ -5,10 +5,11 @@ Automated snapshots at fixed times of your zfs volumes
 ## Usage
 
 ```
-  usage: autosnap [-h] [-d] [-p <prfix>] -t <type> [–Z] [zfs] [zfs] ...
+  usage: ./autosnap [-h] [-d] [-p <prfix>] -t <type> [-Z] [zfs] [zfs] ...
 
     -p   <prfeix>   :   zfs prefix (default: autosnap)
     -d              :   dryrun mode (do not realy create or remove any snapshot)
+    -Z              :   include all vm zfs volumes to create snapshots
     -t              :   snapshot type
                             H = Hourly
                             D = Dayly
@@ -44,5 +45,5 @@ a working entry would be
 
 ```
 curl -kLo /opt/local/bin/autosnap https://raw.githubusercontent.com/skippie81/smartos-zfs-autosnap/master/autosnap
-chmod +x /opt/local/bin/autosnap 
+chmod` +x /opt/local/bin/autosnap 
 ```
