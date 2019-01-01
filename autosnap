@@ -117,7 +117,7 @@ clean_snap() {
 
 hourly_snap() {
   snapname=''
-  local hour=$(date +"%k")
+  local hour=$(date +"%H")
   snapname=${PREFIX}-hourly-${hour}
 }
 
