@@ -70,7 +70,7 @@ do
         ;;
     d)  dryrun=true
         ;;
-    Z)  zfs_volumes="$(vmadm list -o uuid -H type=LX | sed -e 's/^/zones\//g' | tr '\n' ' ')"
+    Z)  zfs_volumes="$(vmadm list -o uuid -H type=OS | sed -e 's/^/zones\//g' | tr '\n' ' ')"
         zfs_volumes+="$(vmadm list -o uuid -H type=LX | sed -e 's/^/zones\//g' | tr '\n' ' ')"
         ;;
     \?) echo "Invalid option: -"${OPTARG}
