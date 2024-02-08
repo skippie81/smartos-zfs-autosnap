@@ -162,7 +162,7 @@ check_prev_snap() {
   local vol=${1}
   local snap=${2}
 
-  if ( get_snaps "${vol}" | grep "${snap}" )
+  if ( get_snaps "${vol}" | grep -i "^${vol}@${snap}$" )
   then
     return 0
   else
